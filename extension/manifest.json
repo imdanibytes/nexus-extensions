@@ -59,7 +59,9 @@
             "description": "Ring buffer capacity (default: 100)"
           }
         },
-        "required": ["key_expr"]
+        "required": [
+          "key_expr"
+        ]
       }
     },
     {
@@ -74,7 +76,9 @@
             "description": "Subscription ID to remove"
           }
         },
-        "required": ["sub_id"]
+        "required": [
+          "sub_id"
+        ]
       }
     },
     {
@@ -93,7 +97,9 @@
             "description": "Max samples to drain (default: 10)"
           }
         },
-        "required": ["sub_id"]
+        "required": [
+          "sub_id"
+        ]
       }
     },
     {
@@ -118,9 +124,9 @@
   "capabilities": [],
   "binaries": {
     "aarch64-apple-darwin": {
-      "url": "file:///Users/danibytes/workspace/nexus-zenoh/extension/target/release/zenoh-ext",
+      "url": "https://github.com/imdanibytes/nexus-zenoh/releases/download/v0.1.0/zenoh-ext-aarch64-apple-darwin",
       "signature": "dev",
-      "sha256": "dev"
+      "sha256": "9b63a9a801491dac903e48933ad1a4f44c6c2d66c47711253d981d4e6eba5118"
     }
   },
   "extension_dependencies": []
