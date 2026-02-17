@@ -1,7 +1,7 @@
 {
   "id": "zenoh",
   "display_name": "Zenoh",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Generic Zenoh middleware — discover topics, subscribe, and poll samples over IPC",
   "author": "danibytes",
   "author_public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA0=",
@@ -10,6 +10,8 @@
       "name": "start_discovery",
       "description": "Subscribe to a key expression (default **) and track topic metadata. Idempotent.",
       "risk_level": "low",
+      "scope_key": "key_expr",
+      "scope_description": "Zenoh key expression to discover",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -33,6 +35,8 @@
       "name": "get_topics",
       "description": "Return discovered topics with metadata (rate, encoding, avg size)",
       "risk_level": "low",
+      "scope_key": "prefix",
+      "scope_description": "Topic prefix filter",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -47,6 +51,8 @@
       "name": "subscribe",
       "description": "Create a buffered subscription to a key expression, returns sub_id",
       "risk_level": "low",
+      "scope_key": "key_expr",
+      "scope_description": "Zenoh key expression to subscribe",
       "input_schema": {
         "type": "object",
         "properties": {
