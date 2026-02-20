@@ -1,0 +1,85 @@
+{
+  "id": "webhook-receiver",
+  "display_name": "Webhook Receiver",
+  "version": "0.1.0",
+  "description": "Receives inbound HTTP webhooks and publishes them as CloudEvents on the Nexus event bus",
+  "author": "danibytes",
+  "license": "MIT",
+  "homepage": "https://github.com/imdanibytes/nexus-webhook-receiver",
+  "operations": [
+    {
+      "name": "get_server_info",
+      "description": "Get the webhook server port and base URL",
+      "risk_level": "low",
+      "input_schema": { "type": "object", "properties": {} }
+    },
+    {
+      "name": "get_recent_deliveries",
+      "description": "Get recent webhook deliveries for a specific webhook",
+      "risk_level": "low",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "webhook_id": { "type": "string" }
+        },
+        "required": ["webhook_id"]
+      }
+    }
+  ],
+  "capabilities": [
+    { "type": "network_http", "scope": ["localhost"] },
+    { "type": "custom", "name": "tcp_listen", "description": "Binds a TCP port on localhost for receiving webhooks" }
+  ],
+  "author_public_key": "PLACEHOLDER",
+  "binaries": {},
+  "resources": {
+    "webhooks": {
+      "label": "Webhooks",
+      "description": "Registered webhook endpoints",
+      "icon": "webhook",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "x-resource-role": "id" },
+          "name": { "type": "string", "x-resource-role": "editable" },
+          "event_type": {
+            "type": "string",
+            "x-resource-role": "editable",
+            "description": "CloudEvent type (e.g. com.github.push)"
+          },
+          "verification_method": {
+            "type": "string",
+            "enum": ["none", "standard-webhooks", "github-hmac", "custom-header"],
+            "x-resource-role": "editable"
+          },
+          "verification_secret": {
+            "type": "string",
+            "x-resource-role": "editable",
+            "x-display": { "input": "password" }
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "paused", "error"],
+            "x-resource-role": "readonly",
+            "x-display": { "variant": "status-indicator" }
+          },
+          "url": {
+            "type": "string",
+            "x-resource-role": "readonly",
+            "description": "Generated endpoint URL"
+          },
+          "trigger_count": { "type": "integer", "x-resource-role": "readonly" },
+          "last_triggered": {
+            "type": "string",
+            "format": "date-time",
+            "x-resource-role": "readonly",
+            "x-display": { "format": "relative-time" }
+          }
+        },
+        "required": ["name", "event_type"]
+      },
+      "list_view": { "columns": ["name", "event_type", "status", "trigger_count", "last_triggered"] },
+      "capabilities": { "create": true, "update": true, "delete": true }
+    }
+  }
+}
