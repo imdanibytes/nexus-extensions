@@ -1,0 +1,75 @@
+{
+  "id": "com.nexus.zenoh-viewer",
+  "name": "Zenoh Viewer",
+  "version": "0.1.0",
+  "description": "Browse and subscribe to Zenoh topics through the generic zenoh extension",
+  "author": "Nexus Team",
+  "license": "MIT",
+  "homepage": "https://github.com/imdanibytes/nexus-zenoh",
+  "image": "ghcr.io/imdanibytes/nexus-plugin-zenoh-viewer:0.1.0",
+  "ui": {
+    "port": 80,
+    "path": "/"
+  },
+  "permissions": [],
+  "health": {
+    "endpoint": "/health",
+    "interval_secs": 30
+  },
+  "mcp": {
+    "tools": [
+      {
+        "name": "discover_zenoh_topics",
+        "description": "Discover active Zenoh topics on the network. Starts discovery if not already running, waits briefly, then returns topic metadata (key expression, rate, encoding, avg payload size).",
+        "permissions": [],
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "key_expr": {
+              "type": "string",
+              "description": "Key expression filter (default: **)"
+            }
+          }
+        }
+      },
+      {
+        "name": "read_zenoh_topic",
+        "description": "Read samples from a Zenoh topic. Subscribes, waits for data, polls, then unsubscribes. Returns payload as string (if UTF-8) or base64.",
+        "permissions": [],
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "key_expr": {
+              "type": "string",
+              "description": "Key expression to read from"
+            },
+            "wait_ms": {
+              "type": "integer",
+              "description": "How long to wait for samples in ms (default: 1000, max: 5000)"
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Max samples to return (default: 10)"
+            }
+          },
+          "required": ["key_expr"]
+        }
+      }
+    ]
+  },
+  "extensions": {
+    "zenoh": [
+      "start_discovery",
+      "stop_discovery",
+      "get_topics",
+      "subscribe",
+      "unsubscribe",
+      "poll",
+      "list_subscriptions",
+      "session_info"
+    ]
+  },
+  "env": {},
+  "min_nexus_version": "0.1.0",
+  "settings": []
+}

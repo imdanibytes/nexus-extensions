@@ -1,0 +1,139 @@
+{
+  "id": "zenoh",
+  "display_name": "Zenoh",
+  "version": "0.1.1",
+  "description": "Generic Zenoh middleware — discover topics, subscribe, and poll samples over IPC",
+  "author": "danibytes",
+  "author_public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA0=",
+  "operations": [
+    {
+      "name": "start_discovery",
+      "description": "Subscribe to a key expression (default **) and track topic metadata. Idempotent.",
+      "risk_level": "low",
+      "scope_key": "key_expr",
+      "scope_description": "Zenoh key expression to discover",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "key_expr": {
+            "type": "string",
+            "description": "Key expression to discover (default: **)"
+          }
+        }
+      }
+    },
+    {
+      "name": "stop_discovery",
+      "description": "Stop discovery subscriber and clear topic map",
+      "risk_level": "low",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "get_topics",
+      "description": "Return discovered topics with metadata (rate, encoding, avg size)",
+      "risk_level": "low",
+      "scope_key": "prefix",
+      "scope_description": "Topic prefix filter",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "prefix": {
+            "type": "string",
+            "description": "Optional prefix filter for key expressions"
+          }
+        }
+      }
+    },
+    {
+      "name": "subscribe",
+      "description": "Create a buffered subscription to a key expression, returns sub_id",
+      "risk_level": "low",
+      "scope_key": "key_expr",
+      "scope_description": "Zenoh key expression to subscribe",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "key_expr": {
+            "type": "string",
+            "description": "Key expression to subscribe to"
+          },
+          "buffer_size": {
+            "type": "integer",
+            "description": "Ring buffer capacity (default: 100)"
+          }
+        },
+        "required": [
+          "key_expr"
+        ]
+      }
+    },
+    {
+      "name": "unsubscribe",
+      "description": "Remove a subscription and its buffer",
+      "risk_level": "low",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "sub_id": {
+            "type": "string",
+            "description": "Subscription ID to remove"
+          }
+        },
+        "required": [
+          "sub_id"
+        ]
+      }
+    },
+    {
+      "name": "poll",
+      "description": "Drain up to N samples from a subscription buffer",
+      "risk_level": "low",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "sub_id": {
+            "type": "string",
+            "description": "Subscription ID to poll"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Max samples to drain (default: 10)"
+          }
+        },
+        "required": [
+          "sub_id"
+        ]
+      }
+    },
+    {
+      "name": "list_subscriptions",
+      "description": "List active subscriptions with stats",
+      "risk_level": "low",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "session_info",
+      "description": "Zenoh connection status and session metadata",
+      "risk_level": "low",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ],
+  "capabilities": [],
+  "binaries": {
+    "aarch64-apple-darwin": {
+      "url": "https://github.com/imdanibytes/nexus-zenoh/releases/download/v0.1.1/zenoh-ext-aarch64-apple-darwin",
+      "signature": "dev",
+      "sha256": "9b63a9a801491dac903e48933ad1a4f44c6c2d66c47711253d981d4e6eba5118"
+    }
+  },
+  "extension_dependencies": []
+}

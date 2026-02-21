@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zenoh Viewer - Nexus Plugin</title>
+  <link rel="stylesheet" href="{{NEXUS_API_URL}}/api/v1/theme.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-nx-deep);
+      color: var(--color-nx-text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    .container { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+    h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--color-nx-text-secondary); font-size: 0.8125rem; margin-bottom: 1.5rem; }
+    .accent { color: var(--color-nx-accent); }
+
+    /* ── Session Bar ── */
+    .session-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.625rem 1rem;
+      background: var(--color-nx-surface);
+      border: 1px solid var(--color-nx-border);
+      border-radius: var(--radius-button);
+      margin-bottom: 1.5rem;
+      font-size: 0.8125rem;
+      flex-wrap: wrap;
+    }
+    .session-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .session-dot.ok { background: var(--color-nx-accent); }
+    .session-dot.err { background: var(--color-nx-error); }
+    .session-zid {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--color-nx-text-muted);
+    }
+    .session-bar .spacer { flex: 1; }
+    .btn {
+      background: var(--color-nx-accent-muted);
+      border: 1px solid var(--color-nx-border-accent);
+      color: var(--color-nx-accent);
+      padding: 0.375rem 0.75rem;
+      border-radius: var(--radius-button);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: var(--font-sans);
+    }
+    .btn:active { opacity: 0.7; }
+    .btn.danger {
+      background: var(--color-nx-error-muted, rgba(255,80,80,0.1));
+      border-color: var(--color-nx-error);
+      color: var(--color-nx-error);
+    }
+    .btn.small { padding: 0.25rem 0.5rem; font-size: 0.6875rem; }
+
+    /* ── Section ── */
+    .section { margin-bottom: 1.5rem; }
+    .section-header {
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--color-nx-text-muted);
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .badge {
+      font-size: 0.625rem;
+      background: var(--color-nx-accent-muted);
+      color: var(--color-nx-accent);
+      padding: 0.125rem 0.375rem;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+
+    /* ── Topics Table ── */
+    .table-wrap {
+      background: var(--color-nx-surface);
+      border: 1px solid var(--color-nx-border);
+      border-radius: var(--radius-card);
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+    th {
+      text-align: left;
+      padding: 0.625rem 0.75rem;
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--color-nx-text-muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--color-nx-border);
+      background: var(--color-nx-deep);
+    }
+    td {
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--color-nx-border-subtle);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr.stale td { opacity: 0.45; }
+    .stale-badge {
+      font-size: 0.5625rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--color-nx-error);
+      font-weight: 600;
+      margin-left: 0.375rem;
+    }
+    .mono { font-family: var(--font-mono); font-size: 0.75rem; }
+    .muted { color: var(--color-nx-text-muted); }
+    .empty-row td { text-align: center; color: var(--color-nx-text-ghost); padding: 2rem; }
+
+    /* ── Subscriptions ── */
+    .sub-card {
+      background: var(--color-nx-surface);
+      border: 1px solid var(--color-nx-border);
+      border-radius: var(--radius-card);
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    .sub-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .sub-header .key-expr {
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--color-nx-accent);
+    }
+    .sub-header .spacer { flex: 1; }
+    .sub-stats {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.75rem;
+      color: var(--color-nx-text-muted);
+      margin-bottom: 0.75rem;
+    }
+    .sub-stats span strong { color: var(--color-nx-text); }
+    .overflow-warn {
+      color: var(--color-nx-error);
+      font-size: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .samples-list {
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      line-height: 1.5;
+      background: var(--color-nx-deep);
+      border-radius: var(--radius-button);
+      padding: 0.5rem 0.75rem;
+    }
+    .sample-line {
+      border-bottom: 1px solid var(--color-nx-border-subtle);
+      padding: 0.25rem 0;
+      word-break: break-all;
+    }
+    .sample-line:last-child { border-bottom: none; }
+    .sample-ke { color: var(--color-nx-accent); }
+    .sample-payload { color: var(--color-nx-text); }
+    .sample-encoding { color: var(--color-nx-text-muted); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .loading { animation: pulse 1.5s infinite; color: var(--color-nx-text-ghost); }
+    .error-state {
+      padding: 0.75rem 1rem;
+      background: var(--color-nx-error-muted, rgba(255,80,80,0.1));
+      border: 1px solid var(--color-nx-error);
+      border-radius: var(--radius-button);
+      color: var(--color-nx-error);
+      font-size: 0.8125rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Zenoh <span class="accent">Viewer</span></h1>
+    <p class="subtitle">Browse and subscribe to Zenoh network topics</p>
+
+    <!-- Session Bar -->
+    <div class="session-bar" id="session-bar">
+      <span class="session-dot" id="session-dot"></span>
+      <span id="session-status">Connecting...</span>
+      <span class="session-zid" id="session-zid"></span>
+      <span class="spacer"></span>
+      <button class="btn" id="discovery-btn" onclick="toggleDiscovery()">Start Discovery</button>
+    </div>
+
+    <!-- Topics Table -->
+    <div class="section">
+      <div class="section-header">
+        Topics <span class="badge" id="topic-count">0</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Key Expression</th>
+              <th>Rate</th>
+              <th>Encoding</th>
+              <th>Avg Size</th>
+              <th>Samples</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="topics-body">
+            <tr class="empty-row"><td colspan="6">Discovery not started</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Subscriptions -->
+    <div class="section">
+      <div class="section-header">
+        Subscriptions <span class="badge" id="sub-count">0</span>
+      </div>
+      <div id="subs-container"></div>
+    </div>
+  </div>
+
+  <script>
+    let config = null;
+    let discoveryActive = false;
+    let subscriptions = {}; // sub_id → { key_expr, pollInterval }
+    let topicRefreshInterval = null;
+
+    // ── Init ──
+
+    async function init() {
+      try {
+        const res = await fetch('/api/config');
+        config = await res.json();
+        await refreshSession();
+      } catch (err) {
+        document.getElementById('session-status').textContent = 'Failed to connect';
+        document.getElementById('session-dot').classList.add('err');
+      }
+    }
+
+    // ── API Helpers ──
+
+    async function extCall(operation, input = {}) {
+      const res = await fetch(
+        config.apiUrl + '/api/v1/extensions/zenoh/' + operation,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + config.token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ input })
+        }
+      );
+      if (!res.ok) throw new Error(operation + ' failed: ' + res.status);
+      const json = await res.json();
+      return json.data || json;
+    }
+
+    // ── Session ──
+
+    async function refreshSession() {
+      try {
+        const info = await extCall('session_info');
+        const dot = document.getElementById('session-dot');
+        const status = document.getElementById('session-status');
+        const zid = document.getElementById('session-zid');
+
+        dot.className = 'session-dot ok';
+        status.textContent = 'Connected';
+        zid.textContent = info.zid ? info.zid.substring(0, 12) + '...' : '';
+      } catch (err) {
+        document.getElementById('session-dot').className = 'session-dot err';
+        document.getElementById('session-status').textContent = 'Disconnected';
+      }
+    }
+
+    // ── Discovery ──
+
+    async function toggleDiscovery() {
+      const btn = document.getElementById('discovery-btn');
+      try {
+        if (discoveryActive) {
+          await extCall('stop_discovery');
+          discoveryActive = false;
+          btn.textContent = 'Start Discovery';
+          btn.className = 'btn';
+          clearInterval(topicRefreshInterval);
+          topicRefreshInterval = null;
+          document.getElementById('topics-body').innerHTML =
+            '<tr class="empty-row"><td colspan="6">Discovery stopped</td></tr>';
+          document.getElementById('topic-count').textContent = '0';
+        } else {
+          await extCall('start_discovery', { key_expr: '**' });
+          discoveryActive = true;
+          btn.textContent = 'Stop Discovery';
+          btn.className = 'btn danger';
+          refreshTopics();
+          topicRefreshInterval = setInterval(refreshTopics, 2000);
+        }
+      } catch (err) {
+        console.error('Discovery toggle failed:', err);
+      }
+    }
+
+    async function refreshTopics() {
+      try {
+        const result = await extCall('get_topics');
+        const topics = result.topics || [];
+        const tbody = document.getElementById('topics-body');
+        document.getElementById('topic-count').textContent = topics.length;
+
+        if (topics.length === 0) {
+          tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Listening... no topics yet</td></tr>';
+          return;
+        }
+
+        // Sort by sample count descending
+        topics.sort((a, b) => b.sample_count - a.sample_count);
+
+        tbody.innerHTML = topics.map(t => {
+          const isSubbed = Object.values(subscriptions).some(s => s.key_expr === t.key_expr);
+          const btnLabel = isSubbed ? 'Subscribed' : 'Subscribe';
+          const btnClass = isSubbed ? 'btn small muted' : 'btn small';
+          const staleLabel = t.stale ? '<span class="stale-badge">stale</span>' : '';
+          return '<tr' + (t.stale ? ' class="stale"' : '') + '>' +
+            '<td class="mono">' + esc(t.key_expr) + staleLabel + '</td>' +
+            '<td>' + t.rate_hz + ' Hz</td>' +
+            '<td class="muted">' + esc(t.last_encoding) + '</td>' +
+            '<td>' + formatBytes(t.avg_payload_size) + '</td>' +
+            '<td>' + t.sample_count + '</td>' +
+            '<td><button class="' + btnClass + '" ' +
+              (isSubbed ? 'disabled' : 'onclick="subscribeTo(\'' + esc(t.key_expr) + '\')"') +
+              '>' + btnLabel + '</button></td>' +
+            '</tr>';
+        }).join('');
+      } catch (err) {
+        console.error('Topic refresh failed:', err);
+      }
+    }
+
+    // ── Subscriptions ──
+
+    async function subscribeTo(keyExpr) {
+      try {
+        const result = await extCall('subscribe', { key_expr: keyExpr, buffer_size: 100 });
+        const subId = result.sub_id;
+        const pollInterval = setInterval(() => pollSub(subId), 500);
+        subscriptions[subId] = { key_expr: keyExpr, pollInterval, samples: [], overflow: 0 };
+        renderSubs();
+      } catch (err) {
+        console.error('Subscribe failed:', err);
+      }
+    }
+
+    async function unsubscribeFrom(subId) {
+      try {
+        await extCall('unsubscribe', { sub_id: subId });
+      } catch (_) {}
+      clearInterval(subscriptions[subId]?.pollInterval);
+      delete subscriptions[subId];
+      renderSubs();
+    }
+
+    async function pollSub(subId) {
+      const sub = subscriptions[subId];
+      if (!sub) return;
+
+      try {
+        const result = await extCall('poll', { sub_id: subId, limit: 20 });
+        const samples = result.samples || [];
+        sub.overflow = result.overflow_count || 0;
+
+        if (samples.length > 0) {
+          // Keep last 50 samples
+          sub.samples = sub.samples.concat(samples).slice(-50);
+          renderSubCard(subId);
+        }
+      } catch (err) {
+        // Subscription may have been removed
+        console.error('Poll failed for', subId, err);
+      }
+    }
+
+    function renderSubs() {
+      document.getElementById('sub-count').textContent = Object.keys(subscriptions).length;
+      const container = document.getElementById('subs-container');
+
+      if (Object.keys(subscriptions).length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+
+      // Only re-render cards that don't exist yet
+      for (const subId of Object.keys(subscriptions)) {
+        if (!document.getElementById('sub-' + subId)) {
+          const div = document.createElement('div');
+          div.className = 'sub-card';
+          div.id = 'sub-' + subId;
+          container.appendChild(div);
+          renderSubCard(subId);
+        }
+      }
+
+      // Remove cards for removed subs
+      for (const el of container.querySelectorAll('.sub-card')) {
+        const id = el.id.replace('sub-', '');
+        if (!subscriptions[id]) el.remove();
+      }
+    }
+
+    function renderSubCard(subId) {
+      const sub = subscriptions[subId];
+      if (!sub) return;
+      const el = document.getElementById('sub-' + subId);
+      if (!el) return;
+
+      let html = '<div class="sub-header">' +
+        '<span class="key-expr">' + esc(sub.key_expr) + '</span>' +
+        '<span class="spacer"></span>' +
+        '<button class="btn small danger" onclick="unsubscribeFrom(\'' + subId + '\')">Unsubscribe</button>' +
+        '</div>';
+
+      html += '<div class="sub-stats">' +
+        '<span>Buffered: <strong>' + sub.samples.length + '</strong></span>' +
+        '</div>';
+
+      if (sub.overflow > 0) {
+        html += '<div class="overflow-warn">' + sub.overflow + ' samples dropped (buffer overflow)</div>';
+      }
+
+      if (sub.samples.length > 0) {
+        html += '<div class="samples-list">';
+        // Show most recent first
+        const display = sub.samples.slice().reverse().slice(0, 20);
+        for (const s of display) {
+          const payload = s.payload_str || '[b64] ' + s.payload_b64.substring(0, 60);
+          html += '<div class="sample-line">' +
+            '<span class="sample-ke">' + esc(s.key_expr) + '</span> ' +
+            '<span class="sample-encoding">(' + esc(s.encoding) + ')</span> ' +
+            '<span class="sample-payload">' + esc(payload) + '</span>' +
+            '</div>';
+        }
+        html += '</div>';
+      }
+
+      el.innerHTML = html;
+    }
+
+    // ── Utilities ──
+
+    function esc(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      return (bytes / 1024).toFixed(1) + ' KB';
+    }
+
+    function timeSince(isoStr) {
+      const ms = Date.now() - new Date(isoStr).getTime();
+      if (ms < 1000) return 'now';
+      if (ms < 60000) return Math.floor(ms / 1000) + 's ago';
+      return Math.floor(ms / 60000) + 'm ago';
+    }
+
+    init();
+  </script>
+</body>
+</html>

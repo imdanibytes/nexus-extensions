@@ -1,0 +1,143 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/nexus-plugin-zenoh-viewer
+
+jobs:
+  build-extension:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build extension
+        working-directory: extension
+        run: cargo build --release
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: zenoh-ext-aarch64-apple-darwin
+          path: extension/target/release/zenoh-ext
+
+  build-plugin:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=
+            type=raw,value=latest,enable=true
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: plugin
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Make package public
+        continue-on-error: true
+        run: |
+          curl -s -X PATCH \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/user/packages/container/nexus-plugin-zenoh-viewer" \
+            -d '{"visibility":"public"}' || true
+
+      - name: Output digest
+        run: |
+          echo "## Docker Image Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+
+  publish:
+    needs: [build-extension, build-plugin]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Download extension binary
+        uses: actions/download-artifact@v4
+        with:
+          name: zenoh-ext-aarch64-apple-darwin
+          path: artifacts
+
+      - name: Rename binary with platform suffix
+        run: mv artifacts/zenoh-ext artifacts/zenoh-ext-aarch64-apple-darwin
+
+      - name: Compute SHA256
+        id: sha
+        run: |
+          SHA=$(sha256sum artifacts/zenoh-ext-aarch64-apple-darwin | awk '{print $1}')
+          echo "sha256=$SHA" >> $GITHUB_OUTPUT
+
+      - name: Get version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Generate release manifest
+        run: |
+          jq --arg ver "${{ steps.version.outputs.version }}" \
+             --arg url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/zenoh-ext-aarch64-apple-darwin" \
+             --arg sha "${{ steps.sha.outputs.sha256 }}" \
+             '.version = $ver | .binaries["aarch64-apple-darwin"] = {"url": $url, "signature": "dev", "sha256": $sha}' \
+             extension/manifest.json > release-manifest.json
+
+      - name: Update extension manifest on main
+        run: |
+          cp release-manifest.json extension/manifest.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add extension/manifest.json
+          git diff --cached --quiet || git commit -m "chore: update manifest for ${{ github.ref_name }}"
+          git push origin main
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/zenoh-ext-aarch64-apple-darwin
+            release-manifest.json
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
