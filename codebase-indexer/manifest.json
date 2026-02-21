@@ -1,0 +1,313 @@
+{
+  "id": "codebase-indexer",
+  "display_name": "Codebase Indexer",
+  "version": "0.1.0",
+  "description": "Semantic code search and symbol mapping across git repositories.",
+  "author": "danibytes",
+  "author_public_key": "dev",
+  "capabilities": [
+    {
+      "type": "network_http",
+      "scope": ["localhost", "127.0.0.1"],
+      "description": "Calls embedding provider API for vector generation"
+    }
+  ],
+  "operations": [
+    {
+      "name": "add_repository",
+      "description": "Add a git repository to the index. Starts background indexing.",
+      "risk_level": "medium",
+      "scope_key": "path",
+      "scope_description": "Path to the git repository",
+      "mcp_expose": true,
+      "mcp_description": "Add a git repository to the codebase index. Provide the absolute path to a git repo root. Indexing runs in the background — use list_repositories to check progress. Returns the repo_id for future operations.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Absolute path to the git repository root"
+          }
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "name": "remove_repository",
+      "description": "Remove a repository and all its indexed chunks.",
+      "risk_level": "low",
+      "mcp_expose": true,
+      "mcp_description": "Remove a repository from the index, deleting all associated chunks from the vector database. Pass the repo_id returned by add_repository or list_repositories.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "repo_id": {
+            "type": "string",
+            "description": "Repository ID to remove"
+          }
+        },
+        "required": ["repo_id"]
+      }
+    },
+    {
+      "name": "list_repositories",
+      "description": "List all indexed repositories with status and stats.",
+      "risk_level": "low",
+      "mcp_expose": true,
+      "mcp_description": "List all indexed repositories. Each entry includes: repo_id, name, path, chunk_count, indexing status, last_indexed_commit, and any sync errors. Use this to check indexing progress after add_repository.",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "sync",
+      "description": "Incrementally re-index changed files via git diff.",
+      "risk_level": "low",
+      "mcp_expose": true,
+      "mcp_description": "Incrementally re-index a repository by detecting changed files since the last indexed commit using git diff. Only re-processes added/modified files and removes deleted ones. Much faster than a full re-index. Pass a repo_id, or omit to sync all repositories.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "repo_id": {
+            "type": "string",
+            "description": "Repository ID to sync (omit to sync all)"
+          }
+        }
+      }
+    },
+    {
+      "name": "search",
+      "description": "Semantic vector search across indexed code.",
+      "risk_level": "low",
+      "mcp_expose": true,
+      "mcp_description": "Semantic search across indexed codebases. Provide a natural language query (e.g., 'authentication middleware', 'error handling in API routes'). Returns ranked code chunks with file paths, symbol names, line numbers, and relevance scores. Supports filtering by repo_id, workspace, language, and symbol_type. Set full_content: true to include complete source text.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Natural language search query"
+          },
+          "repo_id": {
+            "type": "string",
+            "description": "Filter to a specific repository"
+          },
+          "workspace": {
+            "type": "string",
+            "description": "Filter to repos in a named workspace"
+          },
+          "language": {
+            "type": "string",
+            "description": "Filter by programming language (e.g., 'rust', 'typescript')"
+          },
+          "symbol_type": {
+            "type": "string",
+            "description": "Filter by symbol type (function, struct, class, enum, trait, impl, module, interface, type_alias, file_chunk)"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Max results to return (default: 10)"
+          },
+          "full_content": {
+            "type": "boolean",
+            "description": "Include full source text of each chunk (default: false)"
+          }
+        },
+        "required": ["query"]
+      }
+    },
+    {
+      "name": "map",
+      "description": "Symbol-level architectural map of a repository.",
+      "risk_level": "low",
+      "mcp_expose": true,
+      "mcp_description": "Generate a symbol-level architectural map of an indexed repository. Returns all files grouped with their symbols (functions, structs, classes, etc.) and line ranges. Does NOT include source content — use search for that. Useful for understanding codebase structure and finding the right files to examine.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "repo_id": {
+            "type": "string",
+            "description": "Repository ID to map"
+          },
+          "language": {
+            "type": "string",
+            "description": "Filter to a specific language"
+          },
+          "symbol_type": {
+            "type": "string",
+            "description": "Filter to a specific symbol type"
+          }
+        },
+        "required": ["repo_id"]
+      }
+    },
+    {
+      "name": "status",
+      "description": "Health check: provider connectivity, DB stats.",
+      "risk_level": "low",
+      "mcp_expose": true,
+      "mcp_description": "Check the health of the codebase indexer. Returns embedding provider status (type, model, reachable), database statistics (total chunks), and per-repo status (chunk counts, indexing state, pending embeds).",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "create_workspace",
+      "description": "Group repositories into a named workspace.",
+      "risk_level": "low",
+      "mcp_expose": true,
+      "mcp_description": "Create a named workspace that groups multiple repositories together. Workspaces allow scoped searches across related repos (e.g., group all microservices, or a main app with its plugins). Pass repo_ids from list_repositories.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Workspace name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description"
+          },
+          "repo_ids": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "List of repository IDs to include"
+          }
+        },
+        "required": ["name", "repo_ids"]
+      }
+    },
+    {
+      "name": "list_workspaces",
+      "description": "List all defined workspaces.",
+      "risk_level": "low",
+      "mcp_expose": true,
+      "mcp_description": "List all defined workspaces with their names, descriptions, and included repository IDs.",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "build_graph",
+      "description": "Build or rebuild the symbol graph for a repository.",
+      "risk_level": "low",
+      "mcp_expose": true,
+      "mcp_description": "Build or rebuild the symbol graph (call graph, imports, type hierarchy) for a repository. Runs in the background — the graph auto-builds after indexing, but use this for manual rebuilds. Check list_repositories for graph_building status.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "repo_id": {
+            "type": "string",
+            "description": "Repository ID to build graph for"
+          }
+        },
+        "required": ["repo_id"]
+      }
+    },
+    {
+      "name": "find_references",
+      "description": "Find all usages of a symbol across the codebase.",
+      "risk_level": "low",
+      "mcp_expose": true,
+      "mcp_description": "Find all references to a symbol: call sites, imports, and type implementations. Returns source file, containing function, line number, and resolved target info. Supports filtering by repo_id and edge_type (calls, imports, implements).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "description": "Symbol name to find references for"
+          },
+          "repo_id": {
+            "type": "string",
+            "description": "Filter to a specific repository"
+          },
+          "edge_type": {
+            "type": "string",
+            "description": "Filter by edge type: calls, imports, or implements"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Max results to return (default: 100)"
+          }
+        },
+        "required": ["symbol"]
+      }
+    },
+    {
+      "name": "call_graph",
+      "description": "BFS traversal of the call graph from a symbol.",
+      "risk_level": "low",
+      "mcp_expose": true,
+      "mcp_description": "Traverse the call graph starting from a symbol using BFS. Shows callers (who calls this?) or callees (what does this call?) with configurable depth (max 5). Returns edges with source/target files and line numbers.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "description": "Starting symbol name"
+          },
+          "repo_id": {
+            "type": "string",
+            "description": "Repository ID"
+          },
+          "direction": {
+            "type": "string",
+            "description": "Traversal direction: 'callers' or 'callees' (default: callees)"
+          },
+          "depth": {
+            "type": "integer",
+            "description": "Max BFS depth (default: 2, max: 5)"
+          }
+        },
+        "required": ["symbol", "repo_id"]
+      }
+    },
+    {
+      "name": "dependency_graph",
+      "description": "File/module import dependency graph.",
+      "risk_level": "low",
+      "mcp_expose": true,
+      "mcp_description": "Show the import/dependency graph for a repository. Lists all import relationships between files. Optionally filter to a specific file to see its dependencies. Returns imports grouped by source file with resolved target paths.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "repo_id": {
+            "type": "string",
+            "description": "Repository ID"
+          },
+          "file_path": {
+            "type": "string",
+            "description": "Optional: filter to imports from this file"
+          }
+        },
+        "required": ["repo_id"]
+      }
+    },
+    {
+      "name": "type_hierarchy",
+      "description": "Trait/interface implementation hierarchy.",
+      "risk_level": "low",
+      "mcp_expose": true,
+      "mcp_description": "Show trait/interface implementations across a repository. Lists which types implement which traits/interfaces. Optionally filter to a specific trait/interface name. Returns implementors grouped by trait with file paths and line numbers.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "repo_id": {
+            "type": "string",
+            "description": "Repository ID"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "Optional: filter to implementations of this trait/interface"
+          }
+        },
+        "required": ["repo_id"]
+      }
+    }
+  ],
+  "binaries": {},
+  "extension_dependencies": []
+}
