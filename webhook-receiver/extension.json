@@ -24,6 +24,89 @@
         },
         "required": ["webhook_id"]
       }
+    },
+    {
+      "name": "list_webhooks",
+      "description": "List all registered webhook endpoints with their status, URL, event type, and trigger count.",
+      "risk_level": "low",
+      "mcp_expose": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_webhook",
+      "description": "Create a new webhook endpoint. Returns the generated URL that external services (e.g. GitHub) should POST to. The webhook publishes received payloads as CloudEvents on the Nexus event bus.",
+      "risk_level": "medium",
+      "mcp_expose": true,
+      "mcp_description": "Create a new webhook endpoint. Returns the generated URL that external services (e.g. GitHub) should POST to. Supported verification methods: 'none', 'github-hmac' (GitHub HMAC-SHA256), 'standard-webhooks' (Standard Webhooks spec), 'custom-header'. The event_type sets the CloudEvent type prefix for published events (e.g. 'com.github.issues').",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Human-readable name for the webhook."
+          },
+          "event_type": {
+            "type": "string",
+            "description": "CloudEvent type for events published by this webhook (e.g. 'com.github.issues')."
+          },
+          "verification_method": {
+            "type": "string",
+            "enum": ["none", "github-hmac", "standard-webhooks", "custom-header"],
+            "description": "How to verify incoming webhook signatures. Default: 'none'."
+          },
+          "verification_secret": {
+            "type": "string",
+            "description": "Shared secret for signature verification (required for github-hmac and standard-webhooks)."
+          }
+        },
+        "required": ["name", "event_type"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "update_webhook",
+      "description": "Update an existing webhook's name, event type, or verification settings.",
+      "risk_level": "medium",
+      "mcp_expose": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "webhook_id": {
+            "type": "string",
+            "description": "The webhook ID to update."
+          },
+          "name": { "type": "string", "description": "New name." },
+          "event_type": { "type": "string", "description": "New CloudEvent type." },
+          "verification_method": {
+            "type": "string",
+            "enum": ["none", "github-hmac", "standard-webhooks", "custom-header"]
+          },
+          "verification_secret": { "type": "string", "description": "New shared secret." }
+        },
+        "required": ["webhook_id"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "delete_webhook",
+      "description": "Delete a webhook endpoint. This is permanent — the URL will stop accepting requests immediately.",
+      "risk_level": "medium",
+      "mcp_expose": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "webhook_id": {
+            "type": "string",
+            "description": "The webhook ID to delete."
+          }
+        },
+        "required": ["webhook_id"],
+        "additionalProperties": false
+      }
     }
   ],
   "capabilities": [

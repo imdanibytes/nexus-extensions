@@ -266,6 +266,10 @@ async fn handle_execute(
     let result = match operation {
         "get_server_info" => op_get_server_info(state).await,
         "get_recent_deliveries" => op_get_recent_deliveries(&input, state).await,
+        "list_webhooks" => op_list_webhooks(state).await,
+        "create_webhook" => op_create_webhook(&input, state).await,
+        "update_webhook" => op_update_webhook(&input, state).await,
+        "delete_webhook" => op_delete_webhook(&input, state).await,
         _ => Err(format!("Unknown operation: {operation}")),
     };
 
@@ -433,6 +437,39 @@ async fn op_get_recent_deliveries(
         .collect();
 
     Ok(serde_json::json!({ "deliveries": deliveries }))
+}
+
+// ─── MCP-exposed operations (delegate to resource CRUD) ──────────────────
+
+async fn op_list_webhooks(state: &Arc<RwLock<AppState>>) -> Result<Value, String> {
+    let st = state.read().await;
+    let items: Vec<Value> = st
+        .store
+        .list()
+        .into_iter()
+        .map(|w| serde_json::to_value(w).unwrap_or(Value::Null))
+        .collect();
+    Ok(serde_json::json!({ "webhooks": items, "count": items.len() }))
+}
+
+async fn op_create_webhook(input: &Value, state: &Arc<RwLock<AppState>>) -> Result<Value, String> {
+    resource_create(input, state).await
+}
+
+async fn op_update_webhook(input: &Value, state: &Arc<RwLock<AppState>>) -> Result<Value, String> {
+    let id = input
+        .get("webhook_id")
+        .and_then(|v| v.as_str())
+        .ok_or("missing required field: webhook_id")?;
+    resource_update(id, input.clone(), state).await
+}
+
+async fn op_delete_webhook(input: &Value, state: &Arc<RwLock<AppState>>) -> Result<Value, String> {
+    let id = input
+        .get("webhook_id")
+        .and_then(|v| v.as_str())
+        .ok_or("missing required field: webhook_id")?;
+    resource_delete(id, state).await
 }
 
 // ─── Resource CRUD ────────────────────────────────────────────────────────────
