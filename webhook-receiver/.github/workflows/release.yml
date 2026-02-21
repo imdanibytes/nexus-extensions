@@ -1,0 +1,126 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+env:
+  REGISTRY_REPO: imdanibytes/registry
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-apple-darwin
+            os: macos-13
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package
+        shell: bash
+        run: |
+          BIN=$(sed -n 's/^name = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          TARGET=${{ matrix.target }}
+          mkdir -p dist
+          cp target/${TARGET}/release/${BIN} dist/
+          cd dist
+          tar czf ${BIN}-${TARGET}.tar.gz ${BIN}
+          shasum -a 256 ${BIN}-${TARGET}.tar.gz > ${BIN}-${TARGET}.tar.gz.sha256
+          rm ${BIN}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: dist/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create ${{ github.ref_name }} \
+            --repo ${{ github.repository }} \
+            --title "${{ github.ref_name }}" \
+            --generate-notes \
+            dist/*.tar.gz dist/*.sha256
+
+  registry-pr:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update registry
+        env:
+          GH_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::REGISTRY_TOKEN secret not set — skipping registry PR"
+            exit 0
+          fi
+
+          EXT_ID=$(jq -r '.id' extension.json)
+          VERSION=${GITHUB_REF_NAME#v}
+          BIN=$(sed -n 's/^name = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          REPO=${{ github.repository }}
+          TAG=${{ github.ref_name }}
+          BASE_URL="https://github.com/${REPO}/releases/download/${TAG}"
+
+          git clone https://x-access-token:${GH_TOKEN}@github.com/${REGISTRY_REPO}.git registry
+          cd registry
+
+          YAML="extensions/${EXT_ID}.yaml"
+          if [ ! -f "$YAML" ]; then
+            echo "::warning::${YAML} not found in registry — skipping"
+            exit 0
+          fi
+
+          yq -i ".version = \"${VERSION}\"" "$YAML"
+          for TARGET in aarch64-apple-darwin x86_64-apple-darwin x86_64-unknown-linux-gnu; do
+            yq -i ".binaries.\"${TARGET}\".url = \"${BASE_URL}/${BIN}-${TARGET}.tar.gz\"" "$YAML"
+          done
+
+          if git diff --quiet; then
+            echo "No changes to registry"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BRANCH="bump/${EXT_ID}/${VERSION}"
+          git checkout -b "$BRANCH"
+          git add "$YAML"
+          git commit -m "bump ${EXT_ID} to ${VERSION}"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --repo ${REGISTRY_REPO} \
+            --title "Bump ${EXT_ID} to ${VERSION}" \
+            --body "Automated release from [${REPO}@${TAG}](https://github.com/${REPO}/releases/tag/${TAG})"
