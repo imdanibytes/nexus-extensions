@@ -130,7 +130,7 @@
   "capabilities": [],
   "binaries": {
     "aarch64-apple-darwin": {
-      "url": "https://github.com/imdanibytes/nexus-zenoh/releases/download/v0.1.1/zenoh-ext-aarch64-apple-darwin",
+      "url": "https://github.com/imdanibytes/nexus-zenoh/releases/download/v0.1.0/zenoh-ext-aarch64-apple-darwin",
       "signature": "dev",
       "sha256": "9b63a9a801491dac903e48933ad1a4f44c6c2d66c47711253d981d4e6eba5118"
     }
