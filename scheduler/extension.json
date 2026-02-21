@@ -1,0 +1,66 @@
+{
+  "id": "scheduler",
+  "display_name": "Scheduler",
+  "version": "0.1.0",
+  "description": "Fires CloudEvents on cron, interval, or one-shot schedules",
+  "author": "danibytes",
+  "license": "MIT",
+  "homepage": "https://github.com/imdanibytes/nexus-scheduler",
+  "operations": [
+    {
+      "name": "trigger_now",
+      "description": "Immediately fire a schedule",
+      "risk_level": "medium",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "schedule_id": { "type": "string" }
+        },
+        "required": ["schedule_id"]
+      }
+    },
+    {
+      "name": "get_fire_history",
+      "description": "Get recent fire history for a schedule",
+      "risk_level": "low",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "schedule_id": { "type": "string" }
+        },
+        "required": ["schedule_id"]
+      }
+    }
+  ],
+  "capabilities": [],
+  "author_public_key": "PLACEHOLDER",
+  "binaries": {},
+  "resources": {
+    "schedules": {
+      "label": "Scheduled Tasks",
+      "description": "Cron, interval, and one-shot schedules",
+      "icon": "clock",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "x-resource-role": "id" },
+          "name": { "type": "string", "x-resource-role": "editable" },
+          "event_type": { "type": "string", "x-resource-role": "editable" },
+          "event_data": { "type": "object", "x-resource-role": "editable", "x-display": { "input": "textarea", "format": "code" } },
+          "schedule_type": { "type": "string", "enum": ["cron", "interval", "once"], "x-resource-role": "editable" },
+          "cron_expression": { "type": "string", "x-resource-role": "editable", "x-display": { "input": "cron" } },
+          "interval_seconds": { "type": "integer", "minimum": 10, "x-resource-role": "editable" },
+          "run_at": { "type": "string", "format": "date-time", "x-resource-role": "editable" },
+          "timezone": { "type": "string", "x-resource-role": "editable", "default": "UTC" },
+          "status": { "type": "string", "enum": ["active", "paused", "completed"], "x-resource-role": "readonly", "x-display": { "variant": "status-indicator" } },
+          "last_fired": { "type": "string", "format": "date-time", "x-resource-role": "readonly", "x-display": { "format": "relative-time" } },
+          "next_fire": { "type": "string", "format": "date-time", "x-resource-role": "readonly", "x-display": { "format": "relative-time" } },
+          "fire_count": { "type": "integer", "x-resource-role": "readonly" }
+        },
+        "required": ["name", "event_type", "schedule_type"]
+      },
+      "list_view": { "columns": ["name", "cron_expression", "status", "last_fired", "next_fire"], "sort_by": "next_fire", "sort_order": "asc" },
+      "capabilities": { "create": true, "update": true, "delete": true }
+    }
+  }
+}
